@@ -17,6 +17,6 @@ public interface Hangman extends Remote {
     int connect() throws ServerNotActiveException,UnknownHostException,RemoteException;
     Hangman.HangmanInfo getHangmanInfo() throws RemoteException;
     int getWord() throws RemoteException;
-    ArrayList<Integer> guess(char c) throws RemoteException; //return an object too...
+    ArrayList<Integer> guess(char c) throws RemoteException;
     // int pong() throws RemoteException;
 }

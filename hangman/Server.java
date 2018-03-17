@@ -68,9 +68,11 @@ public class Server extends RemoteServer implements Hangman {
     int minWord;
     int maxWord;
     int noLives;
-    ArrayList<String> words;
+    
+    ArrayList<String> words; //todo make this threadsafe
+
     Hangman.HangmanInfo HInfo;
-    LinkedList<Integer> idPool;
+    LinkedList<Integer> idPool;//this too
     static public int IDPOOL_SIZE = 128;
     public Server(String args[]){
         if(args.length!=3){
@@ -101,6 +103,7 @@ public class Server extends RemoteServer implements Hangman {
             System.err.printf("não foi possivel abrir %s pois %s\n",dictPath,e.toString());
             System.exit(1);
         }
+        slaveServer= new SlaveServer(words);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
         idPool=new LinkedList<Integer>();
@@ -137,6 +140,9 @@ public class Server extends RemoteServer implements Hangman {
         System.out.printf("\r[SERVIDOR] %s\n>",msg);
 
     }
+    private String choseWord(){
+        return words.get(new Random().nextInt(words.size()));
+    }
     //client rpcs
     public Hangman.HangmanInfo getHangmanInfo(){
         return HInfo;
@@ -152,7 +158,7 @@ public class Server extends RemoteServer implements Hangman {
         return id;
     }
     public int getWord()throws RemoteException{
-        String chose =words.get(new Random().nextInt(words.size()));
+        String chose =choseWord();//TODO maybe not in this class
         String ip="";
         InetAddress ipAddr=null;
         int ans=chose.length();;
@@ -225,14 +231,13 @@ public class Server extends RemoteServer implements Hangman {
         Registry registry;
         Registry slaveRegistry;
         Server obj= new Server(args);
-        obj.slaveServer= new SlaveServer();
         try{
             // obj = new Server();
             Hangman stub = (Hangman) UnicastRemoteObject.exportObject(obj, 0);
             HangmanSlaveServer sstub = (HangmanSlaveServer) UnicastRemoteObject.exportObject(obj.slaveServer, 0);
 
             registry = LocateRegistry.createRegistry(4242);
-            slaveRegistry = LocateRegistry.createRegistry(8888);
+            slaveRegistry = LocateRegistry.createRegistry(4243);
 
             registry.bind("hangmanClient", stub);
             slaveRegistry.bind("hangmanSlaveServer", sstub);

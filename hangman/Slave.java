@@ -17,7 +17,7 @@ public class Slave{
 	static ServerInfo connectTo(String host)throws Exception{
         ServerInfo ans=new ServerInfo();
         try{
-            ans.registry = LocateRegistry.getRegistry(host,8888);
+            ans.registry = LocateRegistry.getRegistry(host,4243);
             ans.server = (HangmanSlaveServer) ans.registry.lookup("hangmanSlaveServer");
             // ans.hi = ans.server.getHangmanInfo();
             // ans.id = ans.server.connect();
