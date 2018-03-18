@@ -23,46 +23,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class Server extends RemoteServer implements Hangman {
-    static class ClientStatus{
-        ClientStatus(){
-            tries=new ArrayList<Character>();
-            scoreR=scoreW=uCount=charsR=0;
-        }
-        ClientStatus setLives(int l){
-            lives=l;
-            return this;
-        }
-        ClientStatus setWordUniqCount(String w){
-            uCount=charsR=0;
-            LinkedList<Character> l=new LinkedList<Character>();
-            int s=w.length();
-            for(int i=0;i<s;i++){
-                if(!l.contains(w.charAt(i))){
-                    uCount++;
-                }
-                l.push(w.charAt(i));
-            }
-            System.out.println("Ucount="+uCount);
-            return this;
-        }
-        ClientStatus reset(){
-            tries.clear();
-            uCount=charsR=0;
-            return this;
-        }
-        int lives;
-        
-        int uCount;
-        int charsR;
-
-        int scoreR;
-        int scoreW;
-        ArrayList<Character> tries;
-    }
-    SlaveServer slaveServer;
+    Master master;
     HashMap<InetAddress,Integer> clientsId;
     HashMap<InetAddress,String> clientsWord;
-    HashMap<InetAddress,ClientStatus> clientsStatus;
+    HashMap<InetAddress,Player> players;
     String topic;
     int dictLen;
     int minWord;
@@ -103,7 +67,7 @@ public class Server extends RemoteServer implements Hangman {
             System.err.printf("não foi possivel abrir %s pois %s\n",dictPath,e.toString());
             System.exit(1);
         }
-        slaveServer= new SlaveServer(words);
+        master= new Master(words);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
         idPool=new LinkedList<Integer>();
@@ -120,7 +84,7 @@ public class Server extends RemoteServer implements Hangman {
 
         clientsId=new HashMap<InetAddress,Integer>();
         clientsWord=new HashMap<InetAddress,String>();
-        clientsStatus=new HashMap<InetAddress,ClientStatus>();
+        players=new HashMap<InetAddress,Player>();
     }
     static void printClientList(HashMap<InetAddress,Integer> l){
         System.out.printf("%-11s %-32s\n","ip","id");
@@ -153,15 +117,13 @@ public class Server extends RemoteServer implements Hangman {
         String ip=getClientHost();
         InetAddress ipAddr=InetAddress.getByName(ip);
         clientsId.put(ipAddr,id);
-        clientsStatus.put(ipAddr,new ClientStatus());
+        players.put(ipAddr,new Player());
         serverMsg(ip+" se conectou");
         return id;
     }
     public int getWord()throws RemoteException{
-        String chose =choseWord();//TODO maybe not in this class
         String ip="";
         InetAddress ipAddr=null;
-        int ans=chose.length();;
         try {
             ip=getClientHost();
             ipAddr=InetAddress.getByName(ip);
@@ -170,57 +132,51 @@ public class Server extends RemoteServer implements Hangman {
         if(clientsWord.get(ipAddr)!=null){
             throw new RemoteException("Palavra já escolhida para cliente");
         }
+
+        String chose =choseWord();//TODO maybe not in this class
+        int ans=chose.length();;
         serverMsg(String.format("chose %s to %s\n",chose,ip));
-        clientsStatus.get(ipAddr).setLives(noLives).setWordUniqCount(chose);
+        players.get(ipAddr).setLives(noLives).setWord(chose);
         clientsWord.put(ipAddr,chose);
         
         return ans;
     }
     public ArrayList<Integer> guess(char c)throws RemoteException{
         c=Character.toLowerCase(c);
-        ArrayList<Integer> ans=new ArrayList<Integer>();
+        ArrayList<Integer> ans=null;
         String word="";
         InetAddress ip=null;
+        Player p=null;
+        
         try{
             ip=InetAddress.getByName(getClientHost());
-            word=clientsWord.get(ip);
+            p=players.get(ip);
+            word=p.word;
         }
         catch(Exception e){}//todo
+
         serverMsg(String.format("client %s with %s guessed %c",ip.toString(),word,c));
-        ClientStatus cs=clientsStatus.get(ip);
-        if(cs.uCount==0)throw new RemoteException("Palavra não foi escolhida!");
-        if(cs.tries.contains(c)){
-            ans.add(-1);
-            return ans;
+        
+        try{
+            ans=p.guess(c);
         }
-        cs.tries.add(c);
-        int s=word.length();
-        for(int i=0;i<s;i++){
-            if(word.charAt(i)==c){
-                ans.add(i);
+        catch(Exception e){throw new RemoteException(e.toString());}
+        if(!ans.isEmpty()){
+            switch(ans.get(0)){
+                case -2:
+                    System.out.println("WRONG");
+                    System.out.printf("%s got word wrong! R:%d W:%d",ip.toString(),p.scoreR,p.scoreW);
+                    clientsWord.remove(ip);
+                    break;
+                case -3:
+                    ans.remove((int)0);
+                    System.out.printf("%s got word right! R:%d W:%d",ip.toString(),p.scoreR,p.scoreW);
+                    clientsWord.remove(ip);
+                    break;
             }
         }
-        if(ans.isEmpty()){
-            cs.lives--;
-            System.out.println("WRONG");
-            if(cs.lives==0){
-                cs.scoreW++;
-                cs.reset();
-                System.out.printf("%s got word wrong! R:%d W:%d",ip.toString(),cs.scoreR,cs.scoreW);
-                clientsWord.remove(ip);
-                ans.add(-2);
-                for(char ch:word.toCharArray()){
-                    ans.add((int)ch);
-                }
-            }
-        }
-        else if(++cs.charsR==cs.uCount){
-            cs.scoreR++;
-            cs.reset();
-            clientsWord.remove(ip);
-            System.out.printf("%s got word right! R:%d W:%d",ip.toString(),cs.scoreR,cs.scoreW);
-        }
-        System.out.println("Lives:"+cs.lives);
+        System.out.println("Lives:"+p.lives);
+
         return ans;
     }
     // int pong()throws RemoteException{
@@ -234,12 +190,12 @@ public class Server extends RemoteServer implements Hangman {
         try{
             // obj = new Server();
             Hangman stub = (Hangman) UnicastRemoteObject.exportObject(obj, 0);
-            HangmanMaster sstub = (HangmanMaster) UnicastRemoteObject.exportObject(obj.slaveServer, 0);
+            HangmanMaster sstub = (HangmanMaster) UnicastRemoteObject.exportObject(obj.master, 0);
 
             registry = LocateRegistry.createRegistry(4242);
             slaveRegistry = LocateRegistry.createRegistry(4243);
 
-            registry.bind("hangmanClient", stub);
+            registry.bind("hangmanServer", stub);
             slaveRegistry.bind("hangmanMaster", sstub);
 
             System.out.println("Servidor preparado!");

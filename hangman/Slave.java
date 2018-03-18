@@ -3,7 +3,18 @@ package hangman;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-public class Slave implements HangmanSlave{
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
+
+import java.rmi.server.RemoteServer;
+
+public class Slave extends RemoteServer implements HangmanSlave{
+    ArrayList<String> words;
+    HashMap<Integer,String> clientsWord;
+    public Slave(){
+        words=new ArrayList<String>();
+    }
 	static void err(String msg){
 		System.err.println(msg);
 	    System.exit(-1);
@@ -19,8 +30,6 @@ public class Slave implements HangmanSlave{
         try{
             ans.registry = LocateRegistry.getRegistry(host,4243);
             ans.server = (HangmanMaster) ans.registry.lookup("hangmanMaster");
-            // ans.hi = ans.server.getHangmanInfo();
-            // ans.id = ans.server.connect();
         
         }catch(Exception e){
             throw e;
@@ -28,12 +37,29 @@ public class Slave implements HangmanSlave{
         return ans;
     }
     //rpcs
-    void addWords(List<String> words) throws RemoteException;
-    List<String> removeWords(int noWords) throws RemoteException;
-    int getNoWords() throws RemoteException;//debug
+    public void addWords(List<String> w){
+        words.addAll(words.size(),w);
+    }
+    public List<String> removeWords(int noWords) {
+        if(noWords==words.size()){
+            //throw err
+        }
+        List<String> ans=words.subList(0,noWords);
+        words.subList(0,noWords).clear();
+        return ans;
+    }
+    public int getNoWords() {
+        return words.size();
+    }//debug
 
-    int getWord() throws RemoteException;
-    List<Integer> guess(char c) throws RemoteException;
+    public int getWord(int id){
+        return 1; //TODO
+    }
+    public List<Integer> guess(int id,char c){
+        List<Integer> ans=null;
+        //TODO
+        return ans;
+    }
     //
 	public static void main(String[] args){
 		// if(args.length!=1){

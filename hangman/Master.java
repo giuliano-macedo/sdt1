@@ -13,7 +13,7 @@ import java.util.ArrayList;
 public class Master extends RemoteServer implements HangmanMaster{
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
-	ArrayList<String> words;
+	public ArrayList<String> words;
 	int totalNoWords;
 	static class HangmanSlaveInfo{
 		HangmanSlave server;
@@ -52,7 +52,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 
 		try{
             si.registry = LocateRegistry.getRegistry(ip,4244);
-            si.server = (HangmanSlave) si.registry.lookup("slaveClient");
+            si.server = (HangmanSlave) si.registry.lookup("hangmanSlave");
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
 		int expectedSize=totalNoWords/(slaves.size()+1);
@@ -63,7 +63,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 		catch(Exception e){
 			//cancel joining process
 		}
-		words.subList(0,expectedSize);
+		words.subList(0,expectedSize).clear();
 		int s=slaves.size()-1;
 		for(int i=0;i<s;i++){
 			try{

@@ -40,7 +40,7 @@ public class Client {
         ServerInfo ans=new ServerInfo();
         try{
             ans.registry = LocateRegistry.getRegistry(host,4242);
-            ans.server = (Hangman) ans.registry.lookup("hangmanClient");
+            ans.server = (Hangman) ans.registry.lookup("hangmanServer");
             ans.hi = ans.server.getHangmanInfo();
             ans.id = ans.server.connect();
             System.out.printf("Connected with:%s with id:%s\n",host,ans.id);
@@ -86,7 +86,7 @@ public class Client {
             }
             if(b.get(0)==-2){
                 System.out.print("PERDEU! a palavra era ");
-                int s=b.size()-1;
+                int s=b.size();
                 for(int i=1;i<s;i++){
                     System.out.print((char)b.get(i).intValue());
                 }
