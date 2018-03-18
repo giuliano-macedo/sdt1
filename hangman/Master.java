@@ -10,8 +10,7 @@ import java.net.InetAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
-public class SlaveServer extends RemoteServer implements HangmanSlaveServer{
-	
+public class Master extends RemoteServer implements HangmanMaster{
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
 	ArrayList<String> words;
@@ -20,7 +19,7 @@ public class SlaveServer extends RemoteServer implements HangmanSlaveServer{
 		HangmanSlave server;
 		Registry registry;
 	}
-	public SlaveServer(ArrayList<String> w){
+	public Master(ArrayList<String> w){
 		totalNoWords=w.size();
 		words=w;
 		slavesId=new HashMap<Byte[],Integer>();

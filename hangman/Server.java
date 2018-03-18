@@ -234,13 +234,13 @@ public class Server extends RemoteServer implements Hangman {
         try{
             // obj = new Server();
             Hangman stub = (Hangman) UnicastRemoteObject.exportObject(obj, 0);
-            HangmanSlaveServer sstub = (HangmanSlaveServer) UnicastRemoteObject.exportObject(obj.slaveServer, 0);
+            HangmanMaster sstub = (HangmanMaster) UnicastRemoteObject.exportObject(obj.slaveServer, 0);
 
             registry = LocateRegistry.createRegistry(4242);
             slaveRegistry = LocateRegistry.createRegistry(4243);
 
             registry.bind("hangmanClient", stub);
-            slaveRegistry.bind("hangmanSlaveServer", sstub);
+            slaveRegistry.bind("hangmanMaster", sstub);
 
             System.out.println("Servidor preparado!");
         }catch(Exception e){

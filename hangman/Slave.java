@@ -3,14 +3,14 @@ package hangman;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-public class Slave{
+public class Slave implements HangmanSlave{
 	static void err(String msg){
 		System.err.println(msg);
 	    System.exit(-1);
 	}
 	static class ServerInfo{
         Registry registry;
-        HangmanSlaveServer server;
+        HangmanMaster server;
         // int id;
         // Hangman.HangmanInfo hi;
     }
@@ -18,7 +18,7 @@ public class Slave{
         ServerInfo ans=new ServerInfo();
         try{
             ans.registry = LocateRegistry.getRegistry(host,4243);
-            ans.server = (HangmanSlaveServer) ans.registry.lookup("hangmanSlaveServer");
+            ans.server = (HangmanMaster) ans.registry.lookup("hangmanMaster");
             // ans.hi = ans.server.getHangmanInfo();
             // ans.id = ans.server.connect();
         
@@ -27,6 +27,14 @@ public class Slave{
         }
         return ans;
     }
+    //rpcs
+    void addWords(List<String> words) throws RemoteException;
+    List<String> removeWords(int noWords) throws RemoteException;
+    int getNoWords() throws RemoteException;//debug
+
+    int getWord() throws RemoteException;
+    List<Integer> guess(char c) throws RemoteException;
+    //
 	public static void main(String[] args){
 		// if(args.length!=1){
 		// 	System.out.println("[USO] slave [ip do servidor]");
