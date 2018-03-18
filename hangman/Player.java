@@ -44,4 +44,35 @@ public class Player{
         word="";
         return this;
     }
-}
+    ArrayList<Integer> guess(char c)throws Exception{
+        ans=new ArrayList<Integer>();
+        if(uCount==0)throw new Exception("Palavra não foi escolhida!");
+        if(tries.contains(c)){
+            ans.add(-1);
+            return ans;
+        }
+        p.tries.add(c);
+        int s=word.length();
+        for(int i=0;i<s;i++){
+            if(word.charAt(i)==c){
+                ans.add(i);
+            }
+        }
+        if(ans.isEmpty()){
+            if(--lives==0){
+                scoreW++;
+                ans.add(-2);
+                for(char ch:word.toCharArray()){
+                    ans.add((int)ch);
+                }
+                reset();
+            }
+        }
+        else if(++charsR==uCount){
+            ans.add(0,-3);
+            scoreR++;
+            reset();
+        }
+        System.out.println("Lives:"+p.lives);
+    }
+}   
