@@ -1,3 +1,5 @@
+package hangman;
+
 import java.util.ArrayList;
 import java.util.LinkedList;
 public class Player{
@@ -45,13 +47,13 @@ public class Player{
         return this;
     }
     ArrayList<Integer> guess(char c)throws Exception{
-        ans=new ArrayList<Integer>();
+        ArrayList<Integer> ans=new ArrayList<Integer>();
         if(uCount==0)throw new Exception("Palavra não foi escolhida!");
         if(tries.contains(c)){
             ans.add(-1);
             return ans;
         }
-        p.tries.add(c);
+        tries.add(c);
         int s=word.length();
         for(int i=0;i<s;i++){
             if(word.charAt(i)==c){
@@ -73,6 +75,6 @@ public class Player{
             scoreR++;
             reset();
         }
-        System.out.println("Lives:"+p.lives);
+        return ans;
     }
 }   
