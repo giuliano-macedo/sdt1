@@ -18,5 +18,6 @@ public interface Hangman extends Remote {
     Hangman.HangmanInfo getHangmanInfo() throws RemoteException;
     int getWord() throws RemoteException;
     ArrayList<Integer> guess(char c) throws RemoteException;
+    ArrayList<Integer> getScore() throws RemoteException;
     // int pong() throws RemoteException;
 }

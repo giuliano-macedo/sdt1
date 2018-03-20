@@ -13,16 +13,19 @@ import java.util.ArrayList;
 public class Master extends RemoteServer implements HangmanMaster{
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
+	int maxLives;
 	public ArrayList<String> words;
 	int totalNoWords;
 	static class HangmanSlaveInfo{
 		HangmanSlave server;
 		Registry registry;
 	}
-	public Master(ArrayList<String> w){
+	public Master(ArrayList<String> w,int lives){
 		totalNoWords=w.size();
+		maxLives=lives;
 		words=w;
 		slavesId=new HashMap<Byte[],Integer>();
+		slaves=new ArrayList<HangmanSlaveInfo>();
 		// slavesNoWord=new HashMap<Byte[],Integer>();
 	}
 	public static Byte[] getAddr(String ip){
@@ -51,30 +54,31 @@ public class Master extends RemoteServer implements HangmanMaster{
 		slaves.add(si);
 
 		try{
-            si.registry = LocateRegistry.getRegistry(ip,4244);
+            si.registry = LocateRegistry.getRegistry(ip.toString(),4244);
             si.server = (HangmanSlave) si.registry.lookup("hangmanSlave");
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
+
 		int expectedSize=totalNoWords/(slaves.size()+1);
-		
 		try{
-			si.server.addWords(words.subList(0,expectedSize));
+			si.server.setLives(maxLives);
+			si.server.addWords(new ArrayList<String>(words.subList(0,expectedSize)));
 		}
 		catch(Exception e){
-			//cancel joining process
+			throw new RemoteException("Falha ao enviar palavras "+e.toString());
 		}
 		words.subList(0,expectedSize).clear();
 		int s=slaves.size()-1;
 		for(int i=0;i<s;i++){
 			try{
-				si.server.addWords(slaves.get(i).server.removeWords(expectedSize));
+				si.server.addWords(new ArrayList<String>(slaves.get(i).server.removeWords(expectedSize)));
 			}
 			catch(Exception e){
-				//TODO
+				throw new RemoteException("Falha ao enviar palavras");
 			}
-
 		}
 		slavesId.put(ipAddr,slaves.size());
+		System.out.print("\r"+ip.toString()+" se conectou como escravo\n>");
 	}
 	public void exit() throws RemoteException{
 

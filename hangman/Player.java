@@ -17,6 +17,7 @@ public class Player{
     Player(){
         tries=new ArrayList<Character>();
         scoreR=scoreW=uCount=charsR=0;
+        word="";
     }
     Player setLives(int l){
         lives=l;

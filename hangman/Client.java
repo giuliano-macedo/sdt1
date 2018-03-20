@@ -60,50 +60,60 @@ public class Client {
         // new Thread(r).start();
         Scanner input = new Scanner(System.in);
         int wordLen=0;
-        try{wordLen=testsi.server.getWord();}
-        catch(Exception e){err(e.toString());}
-        ArrayList<Character> word=new ArrayList<Character>(wordLen); //FIX INDEXOUTBOUND ERR
-        for(int i=0;i<wordLen;i++){word.add('\0');}
-        while(word.contains('\0')){
-            System.out.printf("Vidas:%d\n",testsi.hi.lives);
-            for(int i=0;i<wordLen;i++){
-                if(word.get(i)!='\0'){
-                    System.out.print(word.get(i));
-                }
-                else{
-                    System.out.print("_ ");
-                }
-            }
-            System.out.println();
-            char u=input.next().charAt(0);
-            ArrayList<Integer> b=new ArrayList<Integer>();
-            try{b=testsi.server.guess(u);}
+        ArrayList<Integer> b=null;
+        ArrayList<Integer> score=null;
+        char g='s';
+        while(g=='s'){
+            try{wordLen=testsi.server.getWord();}
             catch(Exception e){err(e.toString());}
-            if(b.isEmpty()){
-                System.out.println("ERROU!");
-                testsi.hi.lives--;
-                continue;
-            }
-            if(b.get(0)==-2){
-                System.out.print("PERDEU! a palavra era ");
-                int s=b.size();
-                for(int i=1;i<s;i++){
-                    System.out.print((char)b.get(i).intValue());
+            ArrayList<Character> word=new ArrayList<Character>(wordLen); //FIX INDEXOUTBOUND ERR
+            for(int i=0;i<wordLen;i++){word.add('\0');}
+            while(word.contains('\0')){
+                System.out.printf("Vidas:%d\n",testsi.hi.lives);
+                for(int i=0;i<wordLen;i++){
+                    if(word.get(i)!='\0'){
+                        System.out.print(word.get(i));
+                    }
+                    else{
+                        System.out.print("_ ");
+                    }
                 }
-                System.out.print('\n');
-                break;
+                System.out.println();
+                char u=input.next().charAt(0);
+                try{b=testsi.server.guess(u);}
+                catch(Exception e){err(e.toString());}
+                if(b.isEmpty()){
+                    System.out.println("ERROU!");
+                    testsi.hi.lives--;
+                    continue;
+                }
+                if(b.get(0)==-2){
+                    String str="";
+                    for(Integer i:b.subList(1,b.size()))str+=(char)(int)i;
+                    System.out.printf("PERDEU! a palavra era %s\n",str);
+                    
+                    break;
+                }
+                if(b.get(0)==-1){
+                    System.out.println("Esse caractere já foi escolhido!");
+                    continue;
+                }
+                for(int i=0;i<b.size();i++){
+                    word.set(b.get(i),u);
+                }
             }
-            if(b.get(0)==-1){
-                System.out.println("Esse caractere já foi escolhido!");
-                continue;
+            if(!word.contains('\0')){
+                String str="";
+                for(Character c:word) str+=c;
+                System.out.printf("ACERTOU! a palavra era %s\n",str);
             }
-            for(int i=0;i<b.size();i++){
-                word.set(b.get(i),u);
+            try{
+                score=testsi.server.getScore();
             }
+            catch(Exception e){err(e.toString());}
+            System.out.println("Jogar novamente? : [S]im [N]ão");
+            System.out.printf("Pontuação : certo:%d errado:%d\n",score.get(0),score.get(1));
+            g=Character.toLowerCase(input.next().charAt(0));
         }
-        if(!word.contains('\0')){
-            System.out.printf("ACERTOU! a palavra era %s\n",word);
-        }
-
     }
 }

@@ -25,7 +25,7 @@ import java.net.UnknownHostException;
 public class Server extends RemoteServer implements Hangman {
     Master master;
     HashMap<InetAddress,Integer> clientsId;
-    HashMap<InetAddress,String> clientsWord;
+    HashMap<Integer,HangmanSlave> associatedSlaves;
     HashMap<InetAddress,Player> players;
     String topic;
     int dictLen;
@@ -67,7 +67,7 @@ public class Server extends RemoteServer implements Hangman {
             System.err.printf("não foi possivel abrir %s pois %s\n",dictPath,e.toString());
             System.exit(1);
         }
-        master= new Master(words);
+        master= new Master(words,noLives);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
         idPool=new LinkedList<Integer>();
@@ -83,8 +83,8 @@ public class Server extends RemoteServer implements Hangman {
         HInfo.lives=noLives;
 
         clientsId=new HashMap<InetAddress,Integer>();
-        clientsWord=new HashMap<InetAddress,String>();
         players=new HashMap<InetAddress,Player>();
+        associatedSlaves=new HashMap<Integer,HangmanSlave>();
     }
     static void printClientList(HashMap<InetAddress,Integer> l){
         System.out.printf("%-11s %-32s\n","ip","id");
@@ -94,11 +94,20 @@ public class Server extends RemoteServer implements Hangman {
                 e.getValue());
         }
     }
+    static void printSlavesList(HashMap<Byte[],Integer> l){
+        System.out.printf("%-11s %-32s\n","ip","id");
+        for(Map.Entry<Byte[],Integer> e : l.entrySet()){
+            Byte[] temp=e.getKey();
+            String ip=String.format("%d.%d.%d.%d",temp[0],temp[1],temp[2],temp[3]);
+            System.out.printf("%-11s %-32d\n",ip,e.getValue());
+        }
+    }
     static void availableCommands(){
        System.out.println("Comandos disponiveis");
        System.out.println("clients [mostre lista de clientes]");
        System.out.println("help [mostra essa lista]");
        System.out.println("stop [para o servidor]");
+       System.out.println("slaves [mostra lista de escravos]");
     }
     static private void serverMsg(String msg){
         System.out.printf("\r[SERVIDOR] %s\n>",msg);
@@ -129,16 +138,45 @@ public class Server extends RemoteServer implements Hangman {
             ipAddr=InetAddress.getByName(ip);
         }
         catch(Exception e){}//todo
-        if(clientsWord.get(ipAddr)!=null){
+        int id=clientsId.get(ipAddr);
+        // if(!master.slaves.isEmpty()&&new Random().nextInt(4)==0){
+        if(!master.slaves.isEmpty()){
+            int ans=0;
+            int i=new Random().nextInt(master.slaves.size());
+            HangmanSlave hs=master.slaves.get(i).server;
+            if(associatedSlaves.get(id)!=null){
+                throw new RemoteException("Id já associado");
+            }
+            associatedSlaves.put(id,hs);
+            
+            try{
+                ans=hs.getWord(id);
+            }
+            catch(Exception e){throw new RemoteException("Server:"+e.toString());}
+            serverMsg(String.format("Escolhido algo para %s com escravo %d\n",ip,i));
+            return ans;
+        }
+        if(players.get(ipAddr).word!=""){
             throw new RemoteException("Palavra já escolhida para cliente");
         }
 
         String chose =choseWord();//TODO maybe not in this class
-        int ans=chose.length();;
+        int ans=chose.length();
         serverMsg(String.format("chose %s to %s\n",chose,ip));
         players.get(ipAddr).setLives(noLives).setWord(chose);
-        clientsWord.put(ipAddr,chose);
         
+        return ans;
+    }
+    public ArrayList<Integer> getScore()throws RemoteException{
+        InetAddress ip=null;
+        try{
+            ip=InetAddress.getByName(getClientHost());
+        }
+        catch(Exception e){}//todo
+        ArrayList<Integer> ans= new ArrayList<Integer>(2);
+        Player p=players.get(ip);
+        ans.add(p.scoreR);
+        ans.add(p.scoreW);
         return ans;
     }
     public ArrayList<Integer> guess(char c)throws RemoteException{
@@ -151,10 +189,36 @@ public class Server extends RemoteServer implements Hangman {
         try{
             ip=InetAddress.getByName(getClientHost());
             p=players.get(ip);
-            word=p.word;
         }
         catch(Exception e){}//todo
-
+        int id=clientsId.get(ip);
+        HangmanSlave hs;
+        if((hs=associatedSlaves.get(id))!=null){
+            try{
+                ans=hs.guess(id,c);
+            }
+            catch(Exception e){throw new RemoteException(e.toString());}
+            if(!ans.isEmpty()){
+                switch(ans.get(0)){
+                    case -2:
+                        p.scoreW++;
+                        associatedSlaves.remove(id);
+                        System.out.printf("%s PERDEU! R:%d W:%d\n",ip.toString(),p.scoreR,p.scoreW);
+                        break;
+                    case -3:
+                        System.out.printf("%s ACERTOU! R:%d W:%d\n",ip.toString(),p.scoreR,p.scoreW);
+                        p.scoreR++;
+                        ans.remove((int)0);
+                        associatedSlaves.remove(id);
+                        break;
+                }
+            }
+            return ans;
+        }
+        try{
+            word=p.word;
+        }
+        catch(Exception e){}//tod
         serverMsg(String.format("client %s with %s guessed %c",ip.toString(),word,c));
         
         try{
@@ -164,14 +228,11 @@ public class Server extends RemoteServer implements Hangman {
         if(!ans.isEmpty()){
             switch(ans.get(0)){
                 case -2:
-                    System.out.println("WRONG");
-                    System.out.printf("%s got word wrong! R:%d W:%d",ip.toString(),p.scoreR,p.scoreW);
-                    clientsWord.remove(ip);
+                    System.out.printf("%s PERDEU! R:%d W:%d\n",ip.toString(),p.scoreR,p.scoreW);
                     break;
                 case -3:
                     ans.remove((int)0);
-                    System.out.printf("%s got word right! R:%d W:%d",ip.toString(),p.scoreR,p.scoreW);
-                    clientsWord.remove(ip);
+                    System.out.printf("%s ACERTOU! R:%d W:%d\n",ip.toString(),p.scoreR,p.scoreW);
                     break;
             }
         }
@@ -211,9 +272,13 @@ public class Server extends RemoteServer implements Hangman {
                 case "clients":
                     printClientList(obj.clientsId);
                     break;
+                case "slaves":
+                    printSlavesList(obj.master.slavesId);
+                    break;
                 case "help":
                     availableCommands();
                     break;
+
                 case "stop":
                     // UnicastRemoteObject.unexportObject(registry);
                     System.exit(1);

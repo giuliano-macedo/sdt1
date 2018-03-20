@@ -9,10 +9,11 @@ import java.util.List;
 import java.util.ArrayList;
 
 public interface HangmanSlave extends Remote {
-	void addWords(List<String> w) throws RemoteException;
-	List<String> removeWords(int noWords) throws RemoteException;
-	int getNoWords() throws RemoteException;//debug
+	void setLives(int lives) throws RemoteException;//debug
+	void addWords(ArrayList<String> w) throws RemoteException;
+	ArrayList<String> removeWords(int noWords) throws RemoteException;
+	ArrayList<String> getWords() throws RemoteException;//debug
 
 	int getWord(int id) throws RemoteException;
-	List<Integer> guess(int id,char c) throws RemoteException;
+	ArrayList<Integer> guess(int id,char c) throws RemoteException;
 }
