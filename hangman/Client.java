@@ -2,30 +2,38 @@ package hangman;
 
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.RemoteException;
+
+import java.rmi.server.UnicastRemoteObject;
+
 
 import java.util.Scanner;
 import java.util.ArrayList;
 
 import java.lang.StringBuilder;
 
-public class Client {
-    // static class beatRunnable implements Runnable{
-    //     Hangman server;
-    //     public beatRunnable(Hangman sv){
-    //         server=sv;
-    //     }
-    //     public void run(){
-    //         while(true){
-    //             try{server.pong();}
-    //             catch(Exception e){
-    //                 err("Conexão com servidor perdida");
-    //             }
-    //             try{Thread.sleep(500);}
-    //             catch(Exception e){}
-    //         }
-    //     }
-    // }
-    private Client() {}
+public class Client implements HangmanClient{
+    static class HeartBeat implements Runnable{
+        Hangman server;
+        public HeartBeat(Hangman sv){
+            server=sv;
+        }
+        public void run(){
+            while(true){
+                try{Thread.sleep(500);}
+                catch(Exception e){}
+                try{
+                    int n=server.beat();
+                    if(n!=1)throw new Exception("Beat errado");
+                }
+                catch(Exception e){
+                    System.out.println("Conexão com servidor perdida");
+                    System.exit(0);
+                }
+            }
+        }
+    }
+    public Client() {}
     static void err(String msg){
         System.err.println(msg);
         System.exit(-1);
@@ -52,12 +60,30 @@ public class Client {
         return ans;
     }
 
+    //rpcs
+    public int beat(){
+        return 1;
+    }
+    //
+
     public static void main(String[] args){
+        Registry registry;
+        Client obj= new Client();
+        try{
+            HangmanClient stub = (HangmanClient) UnicastRemoteObject.exportObject(obj, 0);
+            registry = LocateRegistry.createRegistry(4245);
+            registry.bind("hangmanClient", stub);
+        }catch(Exception e){
+            System.err.println("Falha ao iniciar servidor: " + e.toString());
+            System.exit(-1);
+        }
         ServerInfo testsi=new ServerInfo();
         try {testsi=connectTo("127.0.0.1");}
         catch(Exception e){err(e.toString());}
-        // Runnable r=new beatRunnable(testsi.server);
-        // new Thread(r).start();
+        Runnable r=new HeartBeat(testsi.server);
+        new Thread(r).start();
+        
+
         Scanner input = new Scanner(System.in);
         int wordLen=0;
         ArrayList<Integer> b=null;
@@ -65,7 +91,7 @@ public class Client {
         char g='s';
         while(g=='s'){
             try{wordLen=testsi.server.getWord();}
-            catch(Exception e){err(e.toString());}
+            catch(Exception e){err("servidor getWord :"+e.toString());}
             ArrayList<Character> word=new ArrayList<Character>(wordLen); //FIX INDEXOUTBOUND ERR
             for(int i=0;i<wordLen;i++){word.add('\0');}
             while(word.contains('\0')){
@@ -81,7 +107,7 @@ public class Client {
                 System.out.println();
                 char u=input.next().charAt(0);
                 try{b=testsi.server.guess(u);}
-                catch(Exception e){err(e.toString());}
+                catch(Exception e){err("servidor guess:"+e.toString());}
                 if(b.isEmpty()){
                     System.out.println("ERROU!");
                     testsi.hi.lives--;
@@ -110,7 +136,7 @@ public class Client {
             try{
                 score=testsi.server.getScore();
             }
-            catch(Exception e){err(e.toString());}
+            catch(Exception e){err("servidor getScore:"+e.toString());}
             System.out.println("Jogar novamente? : [S]im [N]ão");
             System.out.printf("Pontuação : certo:%d errado:%d\n",score.get(0),score.get(1));
             g=Character.toLowerCase(input.next().charAt(0));

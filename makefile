@@ -1,5 +1,6 @@
 SRC:=hangman
 DEPS:=$(SRC)/*.java
+all:server client slave
 server:$(SRC)/Server.class
 client:$(SRC)/Client.class
 slave:$(SRC)/Slave.class

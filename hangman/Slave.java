@@ -86,6 +86,9 @@ public class Slave extends RemoteServer implements HangmanSlave{
     public void setLives(int lives){
         maxLives=lives;
     }
+    public void removeClient(int id){
+        players.remove(id);
+    }
     //
 	public static void main(String[] args){
 		// if(args.length!=1){

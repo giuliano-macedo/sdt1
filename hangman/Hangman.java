@@ -19,5 +19,5 @@ public interface Hangman extends Remote {
     int getWord() throws RemoteException;
     ArrayList<Integer> guess(char c) throws RemoteException;
     ArrayList<Integer> getScore() throws RemoteException;
-    // int pong() throws RemoteException;
+    int beat() throws RemoteException;
 }

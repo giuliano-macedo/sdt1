@@ -35,12 +35,36 @@ public class Server extends RemoteServer implements Hangman {
     int maxWord;
     int noLives;
     
-    ArrayList<String> words; //todo make this threadsafe
+    ArrayList<String> words;
 
     Hangman.HangmanInfo HInfo;
-    // LinkedList<Integer> idPool;//this too
-    ConcurrentLinkedQueue<Integer> idPool;//this too
+    ConcurrentLinkedQueue<Integer> idPool;
     static public int IDPOOL_SIZE = 128;
+    static class HeartBeatClient implements Runnable{
+        HangmanClient server;
+        Server obj;
+        int clientId;
+        public HeartBeatClient(Server o,HangmanClient sv,int id){
+            server=sv;
+            obj=o;
+            clientId=id;
+        }
+        public void run(){
+            while(true){
+                try{Thread.sleep(500);}
+                catch(Exception e){}
+                try{
+                    int n=server.beat();
+                    if(n!=1)throw new Exception("Beat errado");
+                }
+                catch(Exception e){
+                    serverMsg("conexão perdida com cliente id:"+clientId);
+                    obj.kickClient(clientId);
+                    return;
+                }
+            }
+        }
+    }
     public Server(String args[]){
         if(args.length!=3){
             System.err.printf("[Uso] server [caminho para arquivo de dicionario] [topico] [número de vidas]\n");
@@ -127,13 +151,52 @@ public class Server extends RemoteServer implements Hangman {
     public Hangman.HangmanInfo getHangmanInfo(){
         return HInfo;
     }
+   public void kickClient(int id){
+        InetAddress ipAddr=null;
+        //BAD ITERATION
+        for (InetAddress o : clientsId.keySet()) {
+          if (clientsId.get(o) == id){
+            ipAddr=o;
+          }
+        }
+        //
+        if(ipAddr==null)return;
+        serverMsg("Kickando "+ipAddr.toString());
+        clientsId.remove(ipAddr);
+        HangmanSlave s;
+        if((s=associatedSlaves.get(id))!=null){
+            try{
+                s.removeClient(id);
+            }
+            catch(Exception e){}
+        }
+        else{
+            players.remove(ipAddr);
+        }
+        idPool.add(id);
+    }
     public int connect()throws ServerNotActiveException,UnknownHostException{
         // if(idPool.empty())throw new Exception("Acabou ids"); //TODO
-        int id=idPool.poll();
+        Registry registry =null;
+        Runnable r=null;
         String ip=getClientHost();
+        int id=idPool.poll();
+        try{
+            registry=LocateRegistry.getRegistry(ip.toString(),4245);
+            r=new HeartBeatClient(
+                this,
+                (HangmanClient)registry.lookup("hangmanClient"),
+                id);
+        }
+        catch(Exception e){
+            serverMsg("Falha ao se conectar conectar "+ip.toString()+" "+e.toString());
+            idPool.add(id);
+        }
+        new Thread(r).start();
         InetAddress ipAddr=InetAddress.getByName(ip);
         clientsId.put(ipAddr,id);
         players.put(ipAddr,new Player());
+
         serverMsg(ip+" se conectou");
         return id;
     }
@@ -247,10 +310,10 @@ public class Server extends RemoteServer implements Hangman {
 
         return ans;
     }
-    // int pong()throws RemoteException{
-    //     return 1;
-    // }
-    //
+    public int beat()throws RemoteException{
+        return 1;
+    }
+    
     public static void main(String args[]) {
         Registry registry;
         Registry slaveRegistry;
@@ -288,7 +351,7 @@ public class Server extends RemoteServer implements Hangman {
 
                 case "stop":
                     // UnicastRemoteObject.unexportObject(registry);
-                    System.exit(1);
+                    System.exit(0);
                 default:
 
                     System.out.println("Comando invalido");
