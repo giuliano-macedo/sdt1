@@ -22,6 +22,8 @@ import java.util.Collections;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 public class Server extends RemoteServer implements Hangman {
     Master master;
     HashMap<InetAddress,Integer> clientsId;
@@ -36,7 +38,8 @@ public class Server extends RemoteServer implements Hangman {
     ArrayList<String> words; //todo make this threadsafe
 
     Hangman.HangmanInfo HInfo;
-    LinkedList<Integer> idPool;//this too
+    // LinkedList<Integer> idPool;//this too
+    ConcurrentLinkedQueue<Integer> idPool;//this too
     static public int IDPOOL_SIZE = 128;
     public Server(String args[]){
         if(args.length!=3){
@@ -70,11 +73,15 @@ public class Server extends RemoteServer implements Hangman {
         master= new Master(words,noLives);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
-        idPool=new LinkedList<Integer>();
+        idPool=new ConcurrentLinkedQueue<Integer>();
+        LinkedList<Integer> temp=new LinkedList<Integer>();
         for(int i=1;i<IDPOOL_SIZE+1;i++){
-            idPool.push(i);
+            temp.push(i);
         }
-        Collections.shuffle(idPool);
+        Collections.shuffle(temp);
+        for(int i=0;i<IDPOOL_SIZE;i++){
+            idPool.add(temp.pop());
+        }
 
         HInfo = new Hangman.HangmanInfo();
         HInfo.topic=topic;
@@ -122,7 +129,7 @@ public class Server extends RemoteServer implements Hangman {
     }
     public int connect()throws ServerNotActiveException,UnknownHostException{
         // if(idPool.empty())throw new Exception("Acabou ids"); //TODO
-        int id=idPool.pop();
+        int id=idPool.poll();
         String ip=getClientHost();
         InetAddress ipAddr=InetAddress.getByName(ip);
         clientsId.put(ipAddr,id);
