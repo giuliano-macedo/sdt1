@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class Server extends RemoteServer implements Hangman {
     Master master;
     HashMap<InetAddress,Integer> clientsId;
+    HashMap<Integer,ClientInfo> clientsInfo;
     HashMap<Integer,HangmanSlave> associatedSlaves;
     HashMap<InetAddress,Player> players;
     String topic;
@@ -40,20 +41,27 @@ public class Server extends RemoteServer implements Hangman {
     Hangman.HangmanInfo HInfo;
     ConcurrentLinkedQueue<Integer> idPool;
     static public int IDPOOL_SIZE = 128;
+    static class ClientInfo{
+        ClientInfo(){}
+        HeartBeatClient hb;
+        HangmanClient server;
+    }
     static class HeartBeatClient implements Runnable{
         HangmanClient server;
         Server obj;
         int clientId;
+        boolean stop=false;
         public HeartBeatClient(Server o,HangmanClient sv,int id){
             server=sv;
             obj=o;
             clientId=id;
         }
         public void run(){
-            while(true){
+            while(!stop){
                 try{Thread.sleep(500);}
                 catch(Exception e){}
                 try{
+                    if(stop)throw new Exception("parando");
                     int n=server.beat();
                     if(n!=1)throw new Exception("Beat errado");
                 }
@@ -94,7 +102,7 @@ public class Server extends RemoteServer implements Hangman {
             System.err.printf("não foi possivel abrir %s pois %s\n",dictPath,e.toString());
             System.exit(1);
         }
-        master= new Master(words,noLives);
+        master= new Master(words,noLives,this);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
         idPool=new ConcurrentLinkedQueue<Integer>();
@@ -114,6 +122,7 @@ public class Server extends RemoteServer implements Hangman {
         HInfo.lives=noLives;
 
         clientsId=new HashMap<InetAddress,Integer>();
+        clientsInfo=new HashMap<Integer,ClientInfo>();
         players=new HashMap<InetAddress,Player>();
         associatedSlaves=new HashMap<Integer,HangmanSlave>();
     }
@@ -136,22 +145,35 @@ public class Server extends RemoteServer implements Hangman {
     static void availableCommands(){
        System.out.println("Comandos disponiveis");
        System.out.println("clients [mostre lista de clientes]");
+       System.out.println("slaves [mostra lista de escravos]");
        System.out.println("help [mostra essa lista]");
        System.out.println("stop [para o servidor]");
-       System.out.println("slaves [mostra lista de escravos]");
     }
-    static private void serverMsg(String msg){
+    static void serverMsg(String msg){
         System.out.printf("\r[SERVIDOR] %s\n>",msg);
 
     }
     private String choseWord(){
         return words.get(new Random().nextInt(words.size()));
     }
-    //client rpcs
     public Hangman.HangmanInfo getHangmanInfo(){
         return HInfo;
     }
-   public void kickClient(int id){
+    public void disassociateSlave(HangmanSlave hg){
+        for(Integer id:associatedSlaves.keySet()){
+            if((associatedSlaves.get(id))==hg){
+                ClientInfo ci=clientsInfo.get(id);
+                try{
+                    ci.server.exit();
+                }
+                catch(Exception e){}
+                ci.hb.stop=true;
+                associatedSlaves.remove(id);
+            }
+        }
+
+    }
+    public void kickClient(int id){
         InetAddress ipAddr=null;
         //BAD ITERATION
         for (InetAddress o : clientsId.keySet()) {
@@ -175,24 +197,26 @@ public class Server extends RemoteServer implements Hangman {
         }
         idPool.add(id);
     }
+    //rpcs
     public int connect()throws ServerNotActiveException,UnknownHostException{
         // if(idPool.empty())throw new Exception("Acabou ids"); //TODO
         Registry registry =null;
         Runnable r=null;
         String ip=getClientHost();
         int id=idPool.poll();
+        ClientInfo ci=new ClientInfo();
         try{
             registry=LocateRegistry.getRegistry(ip.toString(),4245);
-            r=new HeartBeatClient(
-                this,
-                (HangmanClient)registry.lookup("hangmanClient"),
-                id);
+            ci.server=(HangmanClient)registry.lookup("hangmanClient");
+            ci.hb=new HeartBeatClient(this,ci.server,id);
+            r=ci.hb;
         }
         catch(Exception e){
             serverMsg("Falha ao se conectar conectar "+ip.toString()+" "+e.toString());
             idPool.add(id);
         }
         new Thread(r).start();
+        clientsInfo.put(id,ci);
         InetAddress ipAddr=InetAddress.getByName(ip);
         clientsId.put(ipAddr,id);
         players.put(ipAddr,new Player());
@@ -230,7 +254,7 @@ public class Server extends RemoteServer implements Hangman {
             throw new RemoteException("Palavra já escolhida para cliente");
         }
 
-        String chose =choseWord();//TODO maybe not in this class
+        String chose=choseWord();
         int ans=chose.length();
         serverMsg(String.format("chose %s to %s\n",chose,ip));
         players.get(ipAddr).setLives(noLives).setWord(chose);

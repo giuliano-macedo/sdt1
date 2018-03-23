@@ -64,6 +64,9 @@ public class Client implements HangmanClient{
     public int beat(){
         return 1;
     }
+    public void exit(){
+        err("Ocorreu um erro fatal no servidor");
+    }
     //
 
     public static void main(String[] args){

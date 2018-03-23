@@ -13,16 +13,17 @@ import java.util.ArrayList;
 public class Master extends RemoteServer implements HangmanMaster{
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
+	Server server;
 	int maxLives;
 	public ArrayList<String> words;
 	static class HeartBeatSlave implements Runnable{
         HangmanSlave server;
-        Server obj;
-        int clientId;
-        public HeartBeatSlave(Server o,HangmanSlave sv,int id){
+        Master obj;
+        Byte[] clientIp;
+        public HeartBeatSlave(Master o,HangmanSlave sv,Byte[] ip){
             server=sv;
             obj=o;
-            clientId=id;
+            clientIp=ip;
         }
         public void run(){
             while(true){
@@ -33,8 +34,8 @@ public class Master extends RemoteServer implements HangmanMaster{
                     if(n!=1)throw new Exception("Beat errado");
                 }
                 catch(Exception e){
-                    serverMsg("conexão perdida com escravo id:"+clientId);
-                    obj.kickSlave(clientId);
+                    Server.serverMsg("conexão perdida com um escravo ");
+                    obj.kickSlave(clientIp);
                     return;
                 }
             }
@@ -45,7 +46,8 @@ public class Master extends RemoteServer implements HangmanMaster{
 		HangmanSlave server;
 		Registry registry;
 	}
-	public Master(ArrayList<String> w,int lives){
+	public Master(ArrayList<String> w,int lives,Server s){
+		server=s;
 		totalNoWords=w.size();
 		maxLives=lives;
 		words=w;
@@ -65,10 +67,13 @@ public class Master extends RemoteServer implements HangmanMaster{
 		}
 		return ans;
 	}
-	void kickSlave(Byte[] ip,int id){
-		System.out.println("Kickando escravo "+ip.toString());
-		slaves.remove(id);    //not sure
-		slavesId.remove(ipAddr);//too
+	void kickSlave(Byte[] ip){
+		int id=slavesId.get(ip);
+		HangmanSlaveInfo hi=slaves.get(id);
+		Server.serverMsg("Kickando escravo id:"+id);
+		slavesId.remove(ip);
+		slaves.remove(id);
+		server.disassociateSlave(hi.server);
 	}
 	//rpc
 	public void join() throws RemoteException{
@@ -90,7 +95,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
 
-		r=new HeartBeatSlave(this,si.server,id);
+		Runnable r=new HeartBeatSlave(this,si.server,ipAddr);
 		new Thread(r).start();
 
 		int expectedSize=totalNoWords/(slaves.size()+1);
@@ -111,8 +116,8 @@ public class Master extends RemoteServer implements HangmanMaster{
 				throw new RemoteException("Falha ao enviar palavras");
 			}
 		}
-		slavesId.put(ipAddr,slaves.size());
-		System.out.print("\r"+ip.toString()+" se conectou como escravo\n>");
+		slavesId.put(ipAddr,id);
+		Server.serverMsg(ip.toString()+" se conectou como escravo");
 	}
 	public void exit() throws RemoteException{
 		String ip="";
@@ -122,8 +127,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 			ipAddr=getAddr(ip);
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
-        int id=slavesId.get(ipAddr);
-        kickSlave(id,ipAddr);
+        kickSlave(ipAddr);
 	}
 	public int beat() throws RemoteException{
 		return 1;
