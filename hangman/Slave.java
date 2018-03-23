@@ -64,13 +64,13 @@ public class Slave extends RemoteServer implements HangmanSlave{
         System.out.println("adding "+w.toString());
         words.addAll(words.size(),w);
     }
-    public ArrayList<String> removeWords(int noWords) throws RemoteException{
+    public void removeWords(int noWords) throws RemoteException{
+        if(word.size()==0)return;
         if(noWords==words.size()){
             throw new RemoteException("Zerando palavras de um escravo");
         }
-        ArrayList<String> ans=new ArrayList<String>(words.subList(0,noWords));
-        words.subList(0,noWords).clear();
-        return ans;
+        int s=words.size();
+        words.subList(s-noWords+1,s).clear();
     }
     public ArrayList<String> getWords(){
         return words;

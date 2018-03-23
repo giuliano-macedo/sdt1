@@ -30,6 +30,7 @@ public class Server extends RemoteServer implements Hangman {
     HashMap<Integer,ClientInfo> clientsInfo;
     HashMap<Integer,HangmanSlave> associatedSlaves;
     HashMap<InetAddress,Player> players;
+    WordCacher cacher;
     String topic;
     int dictLen;
     int minWord;
@@ -96,6 +97,8 @@ public class Server extends RemoteServer implements Hangman {
                 words.add(l);
                 dictLen++;
             }
+            br.mark(0);
+            cacher=new WordCacher(br);
             if(dictLen==0)throw new Exception("Arquivo vazio");
         }
         catch(Exception e){

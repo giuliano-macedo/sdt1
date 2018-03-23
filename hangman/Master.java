@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
 public class Master extends RemoteServer implements HangmanMaster{
+	boolean isJoining=false;
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
 	Server server;
@@ -75,8 +76,29 @@ public class Master extends RemoteServer implements HangmanMaster{
 		slaves.remove(id);
 		server.disassociateSlave(hi.server);
 	}
+	public void distributeWords()throws RemoteException{
+		int expectedSize=totalNoWords/(slaves.size()+1);
+		
+		int ws=word.size();
+		slaves.get(0).server.addWords(new ArrayList<String>(words.subList(totalNoWords-expectedSize,totalNoWords)));
+		words.subList(totalNoWords-expectedSize,totalNoWords).clear();
+		
+		if(slaves.size()==1)return;
+		
+		slaves.get(0).removeWords(expectedSize);
+		ArrayList<String> temp=null;
+		int s=slaves.size();
+		HangmanSlaveInfo si;
+		for(int i=1;i<s;i++){
+			si=slaves.get(i);
+			c=server.cacher.get(i*ws,(i*ws)+expectedSize);
+			si.server.addWords(c);
+		}
+	}
 	//rpc
 	public void join() throws RemoteException{
+		while(isJoining)Thread.sleep(100);
+		isJoining=true;
 		String ip="";
         Byte[] ipAddr=null;
         int id=slaves.size();
@@ -84,7 +106,10 @@ public class Master extends RemoteServer implements HangmanMaster{
 			ip=getClientHost();
 			ipAddr=getAddr(ip);
 		}
-		catch(Exception e){throw new RemoteException(e.toString());}
+		catch(Exception e){
+			isJoining=false;
+			throw new RemoteException(e.toString());
+		}
 		
 		HangmanSlaveInfo si=new HangmanSlaveInfo();
 		slaves.add(si);
@@ -93,31 +118,25 @@ public class Master extends RemoteServer implements HangmanMaster{
             si.registry = LocateRegistry.getRegistry(ip.toString(),4244);
             si.server = (HangmanSlave) si.registry.lookup("hangmanSlave");
 		}
-		catch(Exception e){throw new RemoteException(e.toString());}
+		catch(Exception e){
+			isJoining=false;
+			throw new RemoteException(e.toString());
+		}
 
 		Runnable r=new HeartBeatSlave(this,si.server,ipAddr);
 		new Thread(r).start();
-
-		int expectedSize=totalNoWords/(slaves.size()+1);
+		si.server.setLives(maxLives);
 		try{
-			si.server.setLives(maxLives);
-			si.server.addWords(new ArrayList<String>(words.subList(0,expectedSize)));
+			distributeWords();
 		}
 		catch(Exception e){
-			throw new RemoteException("Falha ao enviar palavras "+e.toString());
-		}
-		words.subList(0,expectedSize).clear();
-		int s=slaves.size()-1;
-		for(int i=0;i<s;i++){
-			try{
-				si.server.addWords(new ArrayList<String>(slaves.get(i).server.removeWords(expectedSize)));
-			}
-			catch(Exception e){
-				throw new RemoteException("Falha ao enviar palavras");
-			}
+			isJoining=false;
+			Server.serverMsg("Falha ao distribuir palavras");
+			System.out.exit(0);
 		}
 		slavesId.put(ipAddr,id);
 		Server.serverMsg(ip.toString()+" se conectou como escravo");
+		isJoining=false;
 	}
 	public void exit() throws RemoteException{
 		String ip="";

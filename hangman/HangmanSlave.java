@@ -11,7 +11,7 @@ import java.util.ArrayList;
 public interface HangmanSlave extends Remote {
 	void setLives(int lives) throws RemoteException;//debug
 	void addWords(ArrayList<String> w) throws RemoteException;
-	ArrayList<String> removeWords(int noWords) throws RemoteException;
+	void removeWords(int noWords) throws RemoteException;
 	ArrayList<String> getWords() throws RemoteException;//debug
 
 	int getWord(int id) throws RemoteException;
