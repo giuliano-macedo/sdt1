@@ -17,4 +17,5 @@ public interface HangmanSlave extends Remote {
 	int getWord(int id) throws RemoteException;
 	ArrayList<Integer> guess(int id,char c) throws RemoteException;
 	void removeClient(int id)throws RemoteException;
+	int beat()throws RemoteException;
 }

@@ -15,6 +15,31 @@ public class Master extends RemoteServer implements HangmanMaster{
 	ArrayList<HangmanSlaveInfo> slaves;
 	int maxLives;
 	public ArrayList<String> words;
+	static class HeartBeatSlave implements Runnable{
+        HangmanSlave server;
+        Server obj;
+        int clientId;
+        public HeartBeatSlave(Server o,HangmanSlave sv,int id){
+            server=sv;
+            obj=o;
+            clientId=id;
+        }
+        public void run(){
+            while(true){
+                try{Thread.sleep(500);}
+                catch(Exception e){}
+                try{
+                    int n=server.beat();
+                    if(n!=1)throw new Exception("Beat errado");
+                }
+                catch(Exception e){
+                    serverMsg("conexão perdida com escravo id:"+clientId);
+                    obj.kickSlave(clientId);
+                    return;
+                }
+            }
+        }
+    }
 	int totalNoWords;
 	static class HangmanSlaveInfo{
 		HangmanSlave server;
@@ -40,10 +65,16 @@ public class Master extends RemoteServer implements HangmanMaster{
 		}
 		return ans;
 	}
+	void kickSlave(Byte[] ip,int id){
+		System.out.println("Kickando escravo "+ip.toString());
+		slaves.remove(id);    //not sure
+		slavesId.remove(ipAddr);//too
+	}
 	//rpc
 	public void join() throws RemoteException{
 		String ip="";
         Byte[] ipAddr=null;
+        int id=slaves.size();
 		try{
 			ip=getClientHost();
 			ipAddr=getAddr(ip);
@@ -58,6 +89,9 @@ public class Master extends RemoteServer implements HangmanMaster{
             si.server = (HangmanSlave) si.registry.lookup("hangmanSlave");
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
+
+		r=new HeartBeatSlave(this,si.server,id);
+		new Thread(r).start();
 
 		int expectedSize=totalNoWords/(slaves.size()+1);
 		try{
@@ -81,7 +115,18 @@ public class Master extends RemoteServer implements HangmanMaster{
 		System.out.print("\r"+ip.toString()+" se conectou como escravo\n>");
 	}
 	public void exit() throws RemoteException{
-
+		String ip="";
+        Byte[] ipAddr=null;
+		try{
+			ip=getClientHost();
+			ipAddr=getAddr(ip);
+		}
+		catch(Exception e){throw new RemoteException(e.toString());}
+        int id=slavesId.get(ipAddr);
+        kickSlave(id,ipAddr);
+	}
+	public int beat() throws RemoteException{
+		return 1;
 	}
 	//
 }

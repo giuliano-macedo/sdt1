@@ -13,7 +13,27 @@ import java.rmi.server.UnicastRemoteObject;
 import java.rmi.server.RemoteServer;
 
 public class Slave extends RemoteServer implements HangmanSlave{
-	static class ServerInfo{
+	static class HeartBeat implements Runnable{
+        HangmanMaster server;
+        public HeartBeat(HangmanMaster sv){
+            server=sv;
+        }
+        public void run(){
+            while(true){
+                try{Thread.sleep(500);}
+                catch(Exception e){}
+                try{
+                    int n=server.beat();
+                    if(n!=1)throw new Exception("Beat errado");
+                }
+                catch(Exception e){
+                    System.out.println("Conexão com servidor perdida");
+                    System.exit(0);
+                }
+            }
+        }
+    }
+    static class ServerInfo{
         Registry registry;
         HangmanMaster server;
     }
@@ -89,6 +109,9 @@ public class Slave extends RemoteServer implements HangmanSlave{
     public void removeClient(int id){
         players.remove(id);
     }
+    public int beat(){
+        return 1;
+    }
     //
 	public static void main(String[] args){
 		// if(args.length!=1){
@@ -109,6 +132,9 @@ public class Slave extends RemoteServer implements HangmanSlave{
             System.err.println("Server exception: " + e.toString());
             System.exit(-1);
         }
+
+        Runnable r=new HeartBeat(svInfo.server);
+        new Thread(r).start();
 
         try{svInfo.server.join();}
         catch(Exception e){err("Server :"+e.toString());}

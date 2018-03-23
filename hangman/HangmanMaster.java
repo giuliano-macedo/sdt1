@@ -8,4 +8,5 @@ import java.net.UnknownHostException;
 public interface HangmanMaster extends Remote {
 	void join() throws RemoteException;
 	void exit() throws RemoteException;
+	int beat() throws RemoteException;
 }
