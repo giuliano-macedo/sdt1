@@ -12,7 +12,7 @@ $(SRC)/Slave.class:$(DEPS)
 	javac $(SRC)/Slave.java
 .PHONY:runServerTest runClient runSlave clean
 runServerTest:$(SRC)/Server.class
-	java hangman.Server dicts/test.txt test 2
+	java hangman.Server dicts/part.txt part 1
 runClient:$(SRC)/Client.class
 	java hangman.Client
 runSlave:$(SRC)/Slave.class

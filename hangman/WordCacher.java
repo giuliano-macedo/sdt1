@@ -1,3 +1,4 @@
+//scrap
 package hangman;
 
 import java.util.ArrayList;
@@ -17,20 +18,32 @@ public class WordCacher{
 		int i;
 		if(lastE!=s){
 			i=0;
-			br.mark(0);
+			try{
+				br.mark(0);
+			}
+			catch(Exception err){
+				System.err.println("Erro ao processar arquivo");
+				System.exit(-1);
+			}
 		}
 		else{
 			i=s;
 		}
 		String l;
-		while((l = br.readLine()) != null){
-			if(s>=i){
-				if(i>=e){
-					break;
+		try{
+			while((l = br.readLine()) != null){
+				if(s>=i){
+					if(i>=e){
+						break;
+					}
+					ans.add(l);
 				}
-				ans.add(l);
+				i++;
 			}
-			i++;
+		}
+		catch(Exception err){
+			System.err.println("Erro ao processar arquivo");
+			System.exit(-1);
 		}
 		lastE=e;
 		return ans;

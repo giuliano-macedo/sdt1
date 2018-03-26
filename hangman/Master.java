@@ -14,9 +14,9 @@ public class Master extends RemoteServer implements HangmanMaster{
 	boolean isJoining=false;
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
+	ArrayList<String> words;
 	Server server;
 	int maxLives;
-	public ArrayList<String> words;
 	static class HeartBeatSlave implements Runnable{
         HangmanSlave server;
         Master obj;
@@ -79,25 +79,32 @@ public class Master extends RemoteServer implements HangmanMaster{
 	public void distributeWords()throws RemoteException{
 		int expectedSize=totalNoWords/(slaves.size()+1);
 		
-		int ws=word.size();
-		slaves.get(0).server.addWords(new ArrayList<String>(words.subList(totalNoWords-expectedSize,totalNoWords)));
-		words.subList(totalNoWords-expectedSize,totalNoWords).clear();
+		int ws=words.size();
+		slaves.get(0).server.addWords(
+			new ArrayList<String>(
+				words.subList(expectedSize,ws)));
+		words.subList(expectedSize,ws).clear();
 		
 		if(slaves.size()==1)return;
-		
-		slaves.get(0).removeWords(expectedSize);
-		ArrayList<String> temp=null;
+		//todo
+		ArrayList<String> c=slaves.get(0).server.reduceWords(expectedSize);
 		int s=slaves.size();
+		int a=0;
 		HangmanSlaveInfo si;
 		for(int i=1;i<s;i++){
 			si=slaves.get(i);
-			c=server.cacher.get(i*ws,(i*ws)+expectedSize);
-			si.server.addWords(c);
+			a=si.server.addWords(c);
+			if(i!=s-1)c=si.server.reduceWords(expectedSize);
 		}
 	}
 	//rpc
 	public void join() throws RemoteException{
-		while(isJoining)Thread.sleep(100);
+		while(isJoining){
+			try{
+				Thread.sleep(100);
+			}
+			catch(Exception e){}
+		}
 		isJoining=true;
 		String ip="";
         Byte[] ipAddr=null;
@@ -132,7 +139,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 		catch(Exception e){
 			isJoining=false;
 			Server.serverMsg("Falha ao distribuir palavras");
-			System.out.exit(0);
+			System.exit(0);
 		}
 		slavesId.put(ipAddr,id);
 		Server.serverMsg(ip.toString()+" se conectou como escravo");
