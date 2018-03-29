@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 public class Master extends RemoteServer implements HangmanMaster{
 	boolean isJoining=false;
+	boolean isKicking=false;
 	HashMap<Byte[],Integer> slavesId;
 	ArrayList<HangmanSlaveInfo> slaves;
 	ArrayList<String> words;
@@ -69,12 +70,25 @@ public class Master extends RemoteServer implements HangmanMaster{
 		return ans;
 	}
 	void kickSlave(Byte[] ip){
+		while(isKicking||isJoining){
+			try{
+				Thread.sleep(100);
+			}
+			catch(Exception e){return;}
+		}
+		isKicking=true;
 		int id=slavesId.get(ip);
 		HangmanSlaveInfo hi=slaves.get(id);
 		Server.serverMsg("Kickando escravo id:"+id);
+		int s=slaves.size();
+		// for(int i=id+1;i<s;i++){
+		// 	if(slavesId.containsValue())
+		// 	slavesId.put(i-1,slavesId.remove(i));
+		// }
+		server.disassociateSlave(hi.server);
 		slavesId.remove(ip);
 		slaves.remove(id);
-		server.disassociateSlave(hi.server);
+		isKicking=false;
 	}
 	public void distributeWords()throws RemoteException{
 		int expectedSize=totalNoWords/(slaves.size()+1);
@@ -99,11 +113,11 @@ public class Master extends RemoteServer implements HangmanMaster{
 	}
 	//rpc
 	public void join() throws RemoteException{
-		while(isJoining){
+		while(isJoining||isKicking){
 			try{
 				Thread.sleep(100);
 			}
-			catch(Exception e){}
+			catch(Exception e){return;}
 		}
 		isJoining=true;
 		String ip="";

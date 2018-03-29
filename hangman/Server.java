@@ -165,8 +165,10 @@ public class Server extends RemoteServer implements Hangman {
         return HInfo;
     }
     public void disassociateSlave(HangmanSlave hg){
+        int hgid=0;
         for(Integer id:associatedSlaves.keySet()){
             if((associatedSlaves.get(id))==hg){
+                hgid=id;
                 ClientInfo ci=clientsInfo.get(id);
                 try{
                     ci.server.exit();
@@ -174,6 +176,13 @@ public class Server extends RemoteServer implements Hangman {
                 catch(Exception e){}
                 ci.hb.stop=true;
                 associatedSlaves.remove(id);
+                break;
+            }
+        }
+        int s=master.slaves.size();
+        for(int i=hgid+1;i<s;i++){
+            if(associatedSlaves.containsKey(i)){
+                associatedSlaves.put(i-1,associatedSlaves.remove(i));
             }
         }
 

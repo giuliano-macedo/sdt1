@@ -62,7 +62,7 @@ public class Slave extends RemoteServer implements HangmanSlave{
     //rpcs
     public ArrayList<String> reduceWords(int expected)throws RemoteException{
         int s=words.size();
-        if(expecteds>=s)return new ArrayList<String>();
+        if(expected>=s)return new ArrayList<String>();
         ArrayList<String> ans=new ArrayList<String>(words.subList(expected,s));
         words.subList(expected,s).clear();
         System.out.println("Reduzindo para "+words.toString()+" restantes "+ans.toString());
