@@ -75,13 +75,15 @@ public class Server extends RemoteServer implements Hangman {
         }
     }
     public Server(String args[]){
-        if(args.length!=3){
-            System.err.printf("[Uso] server [caminho para arquivo de dicionario] [topico] [número de vidas]\n");
+        if(args.length!=4){
+            System.err.printf("[Uso] server [ip do host] [caminho para arquivo de dicionario] [topico] [número de vidas]\n");
             System.exit(1);
         }
-        String dictPath=args[0];
-        topic=args[1];
-        noLives=Integer.parseInt(args[2]);
+        String svIp=args[0];
+        String dictPath=args[1];
+        topic=args[2];
+        noLives=Integer.parseInt(args[3]);
+        System.setProperty("java.rmi.server.hostname",svIp);
         try{
             FileReader fr = new FileReader(dictPath);
             BufferedReader br=new BufferedReader(fr);

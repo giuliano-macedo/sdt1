@@ -62,10 +62,8 @@ public class Slave extends RemoteServer implements HangmanSlave{
     //rpcs
     public ArrayList<String> reduceWords(int expected)throws RemoteException{
         int s=words.size();
+        if(expecteds>=s)return new ArrayList<String>();
         ArrayList<String> ans=new ArrayList<String>(words.subList(expected,s));
-        if(expected>words.size()){
-            throw new RemoteException("Zerando palavras de um escravo");
-        }
         words.subList(expected,s).clear();
         System.out.println("Reduzindo para "+words.toString()+" restantes "+ans.toString());
         return ans;
@@ -126,12 +124,12 @@ public class Slave extends RemoteServer implements HangmanSlave{
     }
     //
 	public static void main(String[] args){
-		// if(args.length!=1){
-		// 	System.out.println("[USO] slave [ip do servidor]");
-		// }
-		// String svIp=args[0];
+		if(args.length!=1){
+			System.out.println("[USO] slave [ip do servidor]");
+		}
+		String svIp=args[0];
 		ServerInfo svInfo=new ServerInfo();
-		try {svInfo=connectTo("127.0.0.1");}
+		try {svInfo=connectTo(svIp);}
         catch(Exception e){err(e.toString());}
         
         Registry registry;
