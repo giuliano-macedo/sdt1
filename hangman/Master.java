@@ -37,6 +37,7 @@ public class Master extends RemoteServer implements HangmanMaster{
                 }
                 catch(Exception e){
                     Server.serverMsg("conexão perdida com um escravo ");
+                    obj.recoverWords(clientIp);
                     obj.kickSlave(clientIp);
                     return;
                 }
@@ -81,10 +82,12 @@ public class Master extends RemoteServer implements HangmanMaster{
 		HangmanSlaveInfo hi=slaves.get(id);
 		Server.serverMsg("Kickando escravo id:"+id);
 		int s=slaves.size();
-		// for(int i=id+1;i<s;i++){
-		// 	if(slavesId.containsValue())
-		// 	slavesId.put(i-1,slavesId.remove(i));
-		// }
+		for(Byte[] k:slavesId.keySet()){
+			Integer v=slavesId.get(k);
+			if(v>id){
+				slavesId.put(k,v-1);
+			}
+		}
 		server.disassociateSlave(hi.server);
 		slavesId.remove(ip);
 		slaves.remove(id);
@@ -159,14 +162,46 @@ public class Master extends RemoteServer implements HangmanMaster{
 		Server.serverMsg(ip.toString()+" se conectou como escravo");
 		isJoining=false;
 	}
-	public void exit() throws RemoteException{
+	public void fillWordsBack(int id,ArrayList<String> w){
+		server.serverMsg("passando palavras :"+w.toString()+" para tras");
+		if(id==0){
+			server.words.addAll(server.words.size(),w);
+		}
+		else{
+			try{
+				slaves.get(id-1).server.addWords(w);
+			}
+			catch(Exception e){
+				System.out.println("kickando escravo "+(id-1)+" pois não adicionou palavras de um escravo que estava saindo");
+				// kickSlave(slaves.get(id-1));
+			}
+		}
+	}
+	public void recoverWords(Byte[] ip){
+		int id=slavesId.get(ip);
+		int expectedSize=(int)Math.round(totalNoWords/(slaves.size()+1));
+		int startOffset=expectedSize*id;
+		int endOffset=0;
+		if(id!=slaves.size()-1){
+			endOffset=startOffset+expectedSize;
+		}
+		else{
+			endOffset=totalNoWords;
+		}
+		ArrayList<String> w=server.cacher.get(startOffset,endOffset);
+		fillWordsBack(id,w);
+	}
+	public void exit(ArrayList<String> w) throws RemoteException{
 		String ip="";
         Byte[] ipAddr=null;
+        int id=0;
 		try{
 			ip=getClientHost();
 			ipAddr=getAddr(ip);
+			id=slavesId.get(ipAddr);
 		}
 		catch(Exception e){throw new RemoteException(e.toString());}
+		fillWordsBack(id,w);
         kickSlave(ipAddr);
 	}
 	public int beat() throws RemoteException{

@@ -13,6 +13,7 @@ public class WordCacher{
 		lastE=Integer.MAX_VALUE;
 	}
 	public ArrayList<String> get(int s,int e){
+		System.out.print("\r cacher "+s+" "+e+"\n>");
 		ArrayList<String> ans=new ArrayList<String>();
 		if(s>e)return ans;
 		int i;

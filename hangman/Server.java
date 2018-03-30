@@ -147,12 +147,32 @@ public class Server extends RemoteServer implements Hangman {
             System.out.printf("%-11s %-32d\n",ip,e.getValue());
         }
     }
+    public void printWords(){
+        String toPrint;
+        toPrint=(words.size()<=10)?words.toString():words.subList(0,10).toString();
+        System.out.println("Servidor:\n"+toPrint.toString());
+        if(master.slaves.isEmpty())return;
+        System.out.println("Escravos:");
+        int s=master.slaves.size();
+        ArrayList<String> p=null;
+        for(int i=0;i<s;i++){
+            try{
+                p=master.slaves.get(i).server.getWords();
+            }
+            catch(Exception e){
+                //todo
+            }
+            toPrint=(p.size()<=10)?p.toString():p.subList(0,10).toString();
+            System.out.printf("%d %s\n",i,toPrint);
+        }
+    }
     static void availableCommands(){
        System.out.println("Comandos disponiveis");
        System.out.println("clients [mostre lista de clientes]");
        System.out.println("slaves [mostra lista de escravos]");
        System.out.println("help [mostra essa lista]");
        System.out.println("stop [para o servidor]");
+       System.out.println("words [mostra as primeiras 15 palavras do servidor e escravos]");
     }
     static void serverMsg(String msg){
         System.out.printf("\r[SERVIDOR] %s\n>",msg);
@@ -386,7 +406,9 @@ public class Server extends RemoteServer implements Hangman {
                 case "help":
                     availableCommands();
                     break;
-
+                case "words":
+                    obj.printWords();
+                    break;
                 case "stop":
                     // UnicastRemoteObject.unexportObject(registry);
                     System.exit(0);
