@@ -36,8 +36,15 @@ public class Master extends RemoteServer implements HangmanMaster{
                     if(n!=1)throw new Exception("Beat errado");
                 }
                 catch(Exception e){
-                    Server.serverMsg("conexão perdida com um escravo ");
-                    obj.recoverWords(clientIp);
+                    masterMsg("conexão perdida com um escravo ");
+                    if(obj.isWordsConsistent(clientIp)){
+                    	masterMsg("Recuperando palavras de um escravo");
+                    	obj.recoverWords(clientIp);
+                    }
+                    else{
+                    	masterMsg("Recuperando palavras do zero");
+                    	obj.recoverFromScratch(clientIp);
+                    }
                     obj.kickSlave(clientIp);
                     return;
                 }
@@ -57,6 +64,9 @@ public class Master extends RemoteServer implements HangmanMaster{
 		slavesId=new HashMap<Byte[],Integer>();
 		slaves=new ArrayList<HangmanSlaveInfo>();
 		// slavesNoWord=new HashMap<Byte[],Integer>();
+	}
+	public static void masterMsg(String msg){
+		System.out.printf("\r[MESTRE] %s\n>",msg);
 	}
 	public static Byte[] getAddr(String ip){
 		byte[] in=new byte[0];
@@ -80,7 +90,7 @@ public class Master extends RemoteServer implements HangmanMaster{
 		isKicking=true;
 		int id=slavesId.get(ip);
 		HangmanSlaveInfo hi=slaves.get(id);
-		Server.serverMsg("Kickando escravo id:"+id);
+		masterMsg("Kickando escravo id:"+id);
 		int s=slaves.size();
 		for(Byte[] k:slavesId.keySet()){
 			Integer v=slavesId.get(k);
@@ -106,11 +116,10 @@ public class Master extends RemoteServer implements HangmanMaster{
 		//todo
 		ArrayList<String> c=slaves.get(0).server.reduceWords(expectedSize);
 		int s=slaves.size();
-		int a=0;
 		HangmanSlaveInfo si;
 		for(int i=1;i<s;i++){
 			si=slaves.get(i);
-			a=si.server.addWords(c);
+			si.server.addWords(c);
 			if(i!=s-1)c=si.server.reduceWords(expectedSize);
 		}
 	}
@@ -155,21 +164,22 @@ public class Master extends RemoteServer implements HangmanMaster{
 		}
 		catch(Exception e){
 			isJoining=false;
-			Server.serverMsg("Falha ao distribuir palavras");
+			masterMsg("Falha ao distribuir palavras");
 			System.exit(0);
 		}
 		slavesId.put(ipAddr,id);
-		Server.serverMsg(ip.toString()+" se conectou como escravo");
+		masterMsg(ip.toString()+" se conectou como escravo");
 		isJoining=false;
 	}
 	public void fillWordsBack(int id,ArrayList<String> w){
-		server.serverMsg("passando palavras :"+w.toString()+" para tras");
+		masterMsg("passando palavras :"+w.toString()+" para tras");
 		if(id==0){
+			masterMsg("adicionando para o servidor");
 			server.words.addAll(server.words.size(),w);
 		}
 		else{
 			try{
-				slaves.get(id-1).server.addWords(w);
+				slaves.get(id-1).server.appendWords(w);
 			}
 			catch(Exception e){
 				System.out.println("kickando escravo "+(id-1)+" pois não adicionou palavras de um escravo que estava saindo");
@@ -177,10 +187,58 @@ public class Master extends RemoteServer implements HangmanMaster{
 			}
 		}
 	}
+	public boolean isWordsConsistent(Byte[] excIp){
+		int excId=slavesId.get(excIp);
+		int c=server.words.size();
+		int ac=0;
+		int s=slaves.size();
+		for(int i=0;i<s;i++){
+			if(i==excId)continue;
+			try{
+				ac=slaves.get(i).server.getWordsSize();
+			}
+			catch(Exception e){
+				masterMsg("Falha ao verificar tamanho do dicionario de um escravo, kickando...");
+				//TODO
+				return false;
+			}
+			if(i!=s-1){
+				if(ac!=c)return false;
+			}
+			else{
+				//todo test
+				int ex=Math.round(totalNoWords/((slaves.size()+1)));
+				int temp=totalNoWords%ex;
+				temp+=ex;
+				if(ac!=temp)return false;
+			}
+		}
+		return true;
+	}
+
+	public void recoverFromScratch(Byte[] excIp){
+		int excId=slavesId.get(excIp);
+		WordCacher c=server.cacher;
+		int ex=(int)Math.round(totalNoWords/(slaves.size()));
+		server.words=c.get(0,ex);
+		int s=slaves.size();
+		s++;
+		for(int i=1;i<s;i++){
+			if(i-1==excId)continue;
+			int f=(i==s-1)?totalNoWords:(i+1)*ex;
+			try{
+				slaves.get(i-1).server.setWords(c.get((i*ex),f));
+			}
+			catch(Exception e){
+				masterMsg("Falha ao adicionar palavra a um escravo, kickando...");
+				//todo
+			}
+		}
+	}
 	public void recoverWords(Byte[] ip){
 		int id=slavesId.get(ip);
 		int expectedSize=(int)Math.round(totalNoWords/(slaves.size()+1));
-		int startOffset=expectedSize*id;
+		int startOffset=expectedSize*(id+1);
 		int endOffset=0;
 		if(id!=slaves.size()-1){
 			endOffset=startOffset+expectedSize;

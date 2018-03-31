@@ -76,7 +76,7 @@ public class Server extends RemoteServer implements Hangman {
     }
     public Server(String args[]){
         if(args.length!=4){
-            System.err.printf("[Uso] server [ip do host] [caminho para arquivo de dicionario] [topico] [número de vidas]\n");
+            System.err.printf("[Uso] server [ip da maquina] [caminho para arquivo de dicionario] [topico] [número de vidas]\n");
             System.exit(1);
         }
         String svIp=args[0];
@@ -99,8 +99,8 @@ public class Server extends RemoteServer implements Hangman {
                 words.add(l);
                 dictLen++;
             }
-            br.mark(0);
-            cacher=new WordCacher(br);
+            cacher=new WordCacher(dictPath);
+
             if(dictLen==0)throw new Exception("Arquivo vazio");
         }
         catch(Exception e){
@@ -172,7 +172,7 @@ public class Server extends RemoteServer implements Hangman {
        System.out.println("slaves [mostra lista de escravos]");
        System.out.println("help [mostra essa lista]");
        System.out.println("stop [para o servidor]");
-       System.out.println("words [mostra as primeiras 15 palavras do servidor e escravos]");
+       System.out.println("words [mostra as primeiras 10 palavras do servidor e escravos]");
     }
     static void serverMsg(String msg){
         System.out.printf("\r[SERVIDOR] %s\n>",msg);

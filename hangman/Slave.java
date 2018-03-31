@@ -68,11 +68,19 @@ public class Slave extends RemoteServer implements HangmanSlave{
         System.out.println("Reduzindo para "+words.toString()+" restantes "+ans.toString());
         return ans;
     }
-    public int addWords(ArrayList<String> w){
+    public void addWords(ArrayList<String> w){
         System.out.print("adicionando "+w.toString());
         words.addAll(0,w);
         System.out.println(" ="+words.toString());
-        return words.size();
+    }
+    public void setWords(ArrayList<String> w){
+        words.clear();
+        addWords(w);
+    }
+    public void appendWords(ArrayList<String> w){
+        System.out.print("adicionando para o final "+w.toString());
+        words.addAll(w.size(),w);
+        System.out.println(" ="+words.toString());
     }
     public void removeWords(int noWords) throws RemoteException{
         if(words.size()==0)return;
@@ -86,6 +94,10 @@ public class Slave extends RemoteServer implements HangmanSlave{
     public ArrayList<String> getWords(){
         return words;
     }//debug
+
+    public int getWordsSize(){
+        return words.size();
+    }
 
     public int getWord(int id){
         String c=words.get(new Random().nextInt(words.size()));
