@@ -18,7 +18,10 @@ ele irá distribuir a carga (escolher uma palavra, verificar tentativa, contar p
 a id do cliente com um dos escravos conectados.
 
 <h2>Pré-requerimentos</h2>
-<li>jre e jdk >=8</li>
+<ul>
+    <li>jre e jdk >=8</li>
+    <li>make</li>
+</ul>
 <h2>Compilar</h2>
 Basta navegar a pasta raíz e executar
 <code>make</code>
