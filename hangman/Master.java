@@ -56,11 +56,10 @@ public class Master extends RemoteServer implements HangmanMaster{
 		HangmanSlave server;
 		Registry registry;
 	}
-	public Master(ArrayList<String> w,int lives,Server s){
+	public Master(int lives,Server s){
 		server=s;
-		totalNoWords=w.size();
+		totalNoWords=server.words.size();
 		maxLives=lives;
-		words=w;
 		slavesId=new HashMap<Byte[],Integer>();
 		slaves=new ArrayList<HangmanSlaveInfo>();
 		// slavesNoWord=new HashMap<Byte[],Integer>();
@@ -72,7 +71,8 @@ public class Master extends RemoteServer implements HangmanMaster{
 		byte[] in=new byte[0];
 		try{in=InetAddress.getByName(ip).getAddress​();}
 		catch(Exception e){
-			//todo
+			System.err.println("Falha ao obter endereço ip de um escravo");
+			System.exit(-1);
 		}
 		Byte[] ans=new Byte[in.length];
 		for(int i=0;i<in.length;i++){
@@ -106,14 +106,13 @@ public class Master extends RemoteServer implements HangmanMaster{
 	public void distributeWords()throws RemoteException{
 		int expectedSize=totalNoWords/(slaves.size()+1);
 		
-		int ws=words.size();
+		int ws=server.words.size();
 		slaves.get(0).server.addWords(
 			new ArrayList<String>(
-				words.subList(expectedSize,ws)));
-		words.subList(expectedSize,ws).clear();
+				server.words.subList(expectedSize,ws)));
+		server.words.subList(expectedSize,ws).clear();
 		
 		if(slaves.size()==1)return;
-		//todo
 		ArrayList<String> c=slaves.get(0).server.reduceWords(expectedSize);
 		int s=slaves.size();
 		HangmanSlaveInfo si;
@@ -183,7 +182,13 @@ public class Master extends RemoteServer implements HangmanMaster{
 			}
 			catch(Exception e){
 				System.out.println("kickando escravo "+(id-1)+" pois não adicionou palavras de um escravo que estava saindo");
-				// kickSlave(slaves.get(id-1));
+				for(Byte[] itid:slavesId.keySet()){
+					if(slavesId.get(itid)==(id-1)){
+						kickSlave(itid);
+						break;
+					}
+				}
+				fillWordsBack(0,w);
 			}
 		}
 	}
@@ -192,6 +197,8 @@ public class Master extends RemoteServer implements HangmanMaster{
 		int c=server.words.size();
 		int ac=0;
 		int s=slaves.size();
+		int ex=Math.round(totalNoWords/((slaves.size()+1)));
+		if(c!=ex)return false;
 		for(int i=0;i<s;i++){
 			if(i==excId)continue;
 			try{
@@ -199,15 +206,18 @@ public class Master extends RemoteServer implements HangmanMaster{
 			}
 			catch(Exception e){
 				masterMsg("Falha ao verificar tamanho do dicionario de um escravo, kickando...");
-				//TODO
+				for(Byte[] itid:slavesId.keySet()){
+					if(slavesId.get(itid)==i){
+						kickSlave(itid);
+						break;
+					}
+				}
 				return false;
 			}
 			if(i!=s-1){
 				if(ac!=c)return false;
 			}
 			else{
-				//todo test
-				int ex=Math.round(totalNoWords/((slaves.size()+1)));
 				int temp=totalNoWords%ex;
 				temp+=ex;
 				if(ac!=temp)return false;
@@ -231,7 +241,13 @@ public class Master extends RemoteServer implements HangmanMaster{
 			}
 			catch(Exception e){
 				masterMsg("Falha ao adicionar palavra a um escravo, kickando...");
-				//todo
+				for(Byte[] itid:slavesId.keySet()){
+					if(slavesId.get(itid)==i){
+						kickSlave(itid);
+						break;
+					}
+				}
+				recoverFromScratch(excIp);
 			}
 		}
 	}

@@ -1,5 +1,7 @@
 package hangman;
-        
+
+import java.io.IOException;
+
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
@@ -21,6 +23,10 @@ import java.util.Collections;
 // import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.MulticastSocket;
+import java.net.InetAddress;
+import java.net.DatagramPacket;
+
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -47,6 +53,36 @@ public class Server extends RemoteServer implements Hangman {
         HeartBeatClient hb;
         HangmanClient server;
     }
+    static class Discoverer implements Runnable{
+        MulticastSocket s;
+        DatagramPacket p;
+        Hangman.HangmanInfo hinfo;
+        HangmanClient server;
+        public Discoverer(Hangman.HangmanInfo h)throws IOException,UnknownHostException{
+            hinfo=h;
+            s = new MulticastSocket(4246);
+            s.joinGroup(InetAddress.getByName("225.255.255.255"));
+        }
+        public void run(){
+            while(true){
+                try{
+                    p=new DatagramPacket(new byte[0], 0);
+                    s.receive(p);
+                    String ip=p.getAddress().toString().replace("/","");
+                    Registry registry=LocateRegistry.getRegistry(ip,4245);
+                    server=(HangmanClient)registry.lookup("hangmanClient");
+                    server.sendHInfo(hinfo);
+                }
+                catch(Exception e){
+                    System.out.println("Houve um erro com a comunicação com um possivel cliente");
+                }
+
+                try{Thread.sleep(500);}
+                catch(Exception e){}
+            }
+        }
+
+    }  
     static class HeartBeatClient implements Runnable{
         HangmanClient server;
         Server obj;
@@ -107,7 +143,7 @@ public class Server extends RemoteServer implements Hangman {
             System.err.printf("não foi possivel abrir %s pois %s\n",dictPath,e.toString());
             System.exit(1);
         }
-        master= new Master(words,noLives,this);
+        master= new Master(noLives,this);
         System.out.printf("no de palavras carregadas:%d\n",dictLen);
         System.out.printf("maior palavra:%d menor palavra:%d\n",maxWord,minWord);
         idPool=new ConcurrentLinkedQueue<Integer>();
@@ -160,7 +196,14 @@ public class Server extends RemoteServer implements Hangman {
                 p=master.slaves.get(i).server.getWords();
             }
             catch(Exception e){
-                //todo
+                master.masterMsg("Falha ao requisitar palavras do escravo id:"+i);
+                for(Byte[] itid:master.slavesId.keySet()){
+                    if(master.slavesId.get(itid)==i){
+                        master.kickSlave(itid);
+                        break;
+                    }
+                }
+                break;
             }
             toPrint=(p.size()<=10)?p.toString():p.subList(0,10).toString();
             System.out.printf("%d %s\n",i,toPrint);
@@ -232,8 +275,8 @@ public class Server extends RemoteServer implements Hangman {
         idPool.add(id);
     }
     //rpcs
-    public int connect()throws ServerNotActiveException,UnknownHostException{
-        // if(idPool.empty())throw new Exception("Acabou ids"); //TODO
+    public int connect()throws ServerNotActiveException,UnknownHostException,RemoteException{
+        if(idPool.isEmpty())throw new RemoteException("Servidor cheio");
         Registry registry =null;
         Runnable r=null;
         String ip=getClientHost();
@@ -265,7 +308,10 @@ public class Server extends RemoteServer implements Hangman {
             ip=getClientHost();
             ipAddr=InetAddress.getByName(ip);
         }
-        catch(Exception e){}//todo
+        catch(Exception e){
+            System.err.println("Falha ao obter endereço ip de um cliente");
+            System.exit(-1);
+        }
         int id=clientsId.get(ipAddr);
         // if(!master.slaves.isEmpty()&&new Random().nextInt(4)==0){
         if(!master.slaves.isEmpty()){
@@ -300,7 +346,10 @@ public class Server extends RemoteServer implements Hangman {
         try{
             ip=InetAddress.getByName(getClientHost());
         }
-        catch(Exception e){}//todo
+        catch(Exception e){
+            System.err.println("Falha ao obter endereço ip de um cliente");
+            System.exit(-1);
+        }
         ArrayList<Integer> ans= new ArrayList<Integer>(2);
         Player p=players.get(ip);
         ans.add(p.scoreR);
@@ -318,7 +367,10 @@ public class Server extends RemoteServer implements Hangman {
             ip=InetAddress.getByName(getClientHost());
             p=players.get(ip);
         }
-        catch(Exception e){}//todo
+        catch(Exception e){
+            System.err.println("Falha ao obter endereço ip de um cliente");
+            System.exit(-1);
+        }
         int id=clientsId.get(ip);
         HangmanSlave hs;
         if((hs=associatedSlaves.get(id))!=null){
@@ -343,10 +395,7 @@ public class Server extends RemoteServer implements Hangman {
             }
             return ans;
         }
-        try{
-            word=p.word;
-        }
-        catch(Exception e){}//tod
+        word=p.word;
         serverMsg(String.format("client %s with %s guessed %c",ip.toString(),word,c));
         
         try{
@@ -388,10 +437,20 @@ public class Server extends RemoteServer implements Hangman {
             slaveRegistry.bind("hangmanMaster", sstub);
 
             System.out.println("Servidor preparado!");
+            System.out.println("");
         }catch(Exception e){
-            System.err.println("Server exception: " + e.toString());
+            System.err.println("Erro no servidor: " + e.toString());
             System.exit(-1);
         }
+        Runnable d=null;
+        try{
+            d = new Discoverer(obj.HInfo);
+        }
+        catch(Exception e){
+            System.err.println("Erro no sistema de discobrimento de rede: " + e.toString());
+            System.exit(-1);
+        }
+        new Thread(d).start();
         availableCommands();
         Scanner input = new Scanner(System.in);
         System.out.print(">");

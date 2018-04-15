@@ -12,8 +12,7 @@ public class WordCacher{
 	int lastE;
 	String lastL;
 	public WordCacher(String p)throws FileNotFoundException{
-		
-			rat=new RandomAccessFile(new File(p),"r");
+		rat=new RandomAccessFile(new File(p),"r");
 		
 		lastE=Integer.MAX_VALUE;
 		lastL=null;

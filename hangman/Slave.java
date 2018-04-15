@@ -13,7 +13,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.rmi.server.RemoteServer;
 
 public class Slave extends RemoteServer implements HangmanSlave{
-	static class HeartBeat implements Runnable{
+    static class HeartBeat implements Runnable{
         HangmanMaster server;
         public HeartBeat(HangmanMaster sv){
             server=sv;
@@ -79,7 +79,7 @@ public class Slave extends RemoteServer implements HangmanSlave{
     }
     public void appendWords(ArrayList<String> w){
         System.out.print("adicionando para o final "+w.toString());
-        words.addAll(w.size(),w);
+        words.addAll(words.size(),w);
         System.out.println(" ="+words.toString());
     }
     public void removeWords(int noWords) throws RemoteException{
